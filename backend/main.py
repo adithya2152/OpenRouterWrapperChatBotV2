@@ -36,7 +36,7 @@ async def chat_endpoint(request: ChatRequest):
         response = client.chat.completions.create(
             model="mistralai/mistral-7b-instruct",  # Free model on OpenRouter
             messages=[
-                {"role": "system", "content": "You are a helpful assistant"},
+                {"role": "system", "content": '''"You are a helpful assistant"'''},
                 {"role": "user", "content": request.message},
             ],
             stream=False
