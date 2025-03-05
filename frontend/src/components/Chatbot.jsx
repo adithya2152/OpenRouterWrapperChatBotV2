@@ -22,7 +22,7 @@ const Chatbot = () => {
         setInput("");
 
         try {
-            const response = await axios.post("http://0.0.0.0:8000/chat", {
+            const response = await axios.post("https://my-fast-api-ba5i.onrender.com/chat", {
                 message: input,
             });
 
