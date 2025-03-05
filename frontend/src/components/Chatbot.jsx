@@ -4,35 +4,51 @@ import axios from "axios";
 const Chatbot = () => {
     const [input, setInput] = useState("");
     const [messages, setMessages] = useState([]);
+    const [loading, setLoading] = useState(false); // Loading state
+    const [file, setFile] = useState(null); // Store uploaded file
     const chatContainerRef = useRef(null);
 
+    // Auto-scroll to latest message
     useEffect(() => {
-        // Auto-scroll to latest message
         if (chatContainerRef.current) {
-            chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+            chatContainerRef.current.scrollTo({ top: chatContainerRef.current.scrollHeight, behavior: "smooth" });
         }
     }, [messages]);
 
+    // Handle Sending Messages
     const sendMessage = async () => {
-        if (!input.trim()) return;
+        if (!input.trim() && !file) return; // Don't send empty messages
 
-        const userMessage = { role: "user", content: input };
-        const newMessages = [...messages, userMessage];
-        setMessages(newMessages);
+        const userMessage = { role: "user", content: input || "Uploaded a file" };
+        setMessages((prev) => [...prev, userMessage]);
         setInput("");
+        setLoading(true);
 
         try {
-            const response = await axios.post("https://my-fast-api-ba5i.onrender.com/chat", {
-                message: input,
-            });
+            let response;
+            if (file) {
+                // Send file if uploaded
+                const formData = new FormData();
+                formData.append("file", file);
+                formData.append("question", input || "Summarize this document");
 
-            const botMessage = {
-                role: "bot",
-                content: response.data.reply,
-            };
-            setMessages([...newMessages, botMessage]);
+                response = await axios.post("https://my-fast-api-ba5i.onrender.com/upload/", formData, {
+                    headers: { "Content-Type": "multipart/form-data" },
+                });
+
+                setFile(null); // Reset file input
+            } else {
+                // Send text message
+                response = await axios.post("https://my-fast-api-ba5i.onrender.com//chat", { message: input });
+            }
+
+            const botMessage = { role: "bot", content: response.data.reply };
+            setMessages((prev) => [...prev, botMessage]);
         } catch (error) {
             console.error("Error:", error);
+            setMessages((prev) => [...prev, { role: "bot", content: "Error: Failed to get response" }]);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -51,19 +67,25 @@ const Chatbot = () => {
                             </div>
                         </div>
                     ))}
+                    {loading && <div style={styles.loadingMessage}>Thinking...</div>}
                 </div>
 
-                {/* Input Box */}
+                {/* Input Box & File Upload */}
                 <div style={styles.inputContainer}>
+                    <input
+                        type="file"
+                        onChange={(e) => setFile(e.target.files[0])}
+                        style={styles.fileInput}
+                    />
                     <input
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyPress={(e) => e.key === "Enter" && sendMessage()}
-                        placeholder="Type a message..."
+                        placeholder={file ? "Enter a question for the file..." : "Type a message..."}
                         style={styles.input}
                     />
-                    <button onClick={sendMessage} style={styles.sendButton}>
-                        Send
+                    <button onClick={sendMessage} style={styles.sendButton} disabled={loading}>
+                        {loading ? "..." : "Send"}
                     </button>
                 </div>
             </div>
@@ -71,17 +93,16 @@ const Chatbot = () => {
     );
 };
 
-// Inline Styles (Updated for Centering)
+// Inline Styles
 const styles = {
     container: {
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
         height: "100vh",
-        // backgroundColor: "#1E1E1E",
     },
     chatBox: {
-        width: "400px",
+        width: "450px",
         backgroundColor: "#2C2C2C",
         borderRadius: "10px",
         boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.3)",
@@ -92,14 +113,6 @@ const styles = {
         left: "50%",
         top: "50%",
         transform: "translate(-50%, -50%)",
-    },
-    h1:
-    {
-        color: "#FFFFFF",
-        textAlign: "center",
-        fontSize: "24px",
-        fontWeight: "bold",
-        marginBottom: "10px",
     },
     header: {
         textAlign: "center",
@@ -141,11 +154,22 @@ const styles = {
         borderRadius: "8px",
         maxWidth: "75%",
     },
+    loadingMessage: {
+        textAlign: "center",
+        fontStyle: "italic",
+        color: "#AAA",
+        padding: "5px",
+    },
     inputContainer: {
         display: "flex",
+        flexDirection: "column",
         borderTop: "1px solid #444",
         paddingTop: "10px",
         marginTop: "10px",
+    },
+    fileInput: {
+        marginBottom: "10px",
+        color: "white",
     },
     input: {
         flex: 1,
@@ -157,8 +181,8 @@ const styles = {
         color: "white",
     },
     sendButton: {
-        marginLeft: "10px",
-        padding: "10px 15px",
+        marginTop: "10px",
+        padding: "10px",
         border: "none",
         borderRadius: "5px",
         backgroundColor: "#4A90E2",

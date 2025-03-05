@@ -1,0 +1,43 @@
+# 🚀 Python Related Ignored Files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+
+# 🚀 Virtual Environments (venv, pipenv, poetry)
+venv/
+.env/
+*.venv
+*.pip
+Pipfile
+Pipfile.lock
+poetry.lock
+
+# 🚀 Editor-Specific Files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 🚀 OS-Specific Files (Mac & Windows)
+.DS_Store
+Thumbs.db
+
+# 🚀 FastAPI Deployment & Logs
+*.db
+*.sqlite3
+logs/
+*.log
+*.out
+instance/
+
+# 🚀 Dependencies Installed via pip
+__pypackages__/
+site/
+dist/
+build/
+
+# 🚀 Docker Files (If using Docker)
+docker-compose.override.yml
+.env.docker
