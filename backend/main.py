@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pypdf import PdfReader
 from docx import Document
 import shutil
+from getRes import getRes  # ✅ Import getRes function
 
 # Load API Key
 load_dotenv()
@@ -25,16 +26,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Store global chat history (for a single session)
-chat_history = [
-    {"role": "system", "content": """
-    You are an AI tutor guiding a student.
-    Your goal is to:
-    1. Answer the user's question clearly and concisely.
-    2. Follow up with an engaging, open-ended question to encourage deeper thinking.
-    3. Remember previous responses and relate your responses with that.
-    """}
-]
+# Store chat history (only user & assistant messages)
+chat_history = []
 
 class ChatRequest(BaseModel):
     message: str  # User's input
@@ -60,7 +53,23 @@ async def chat_endpoint(request: ChatRequest):
     if not API_KEY:
         raise HTTPException(status_code=500, detail="Missing API Key")
 
-    # Append user message to chat history
+    # ✅ Call getRes() whenever user inputs a message
+    getRes(request.message)
+
+    # ✅ Define system prompt separately (Not in chat history)
+    system_prompt = {
+        "role": "system",
+        "content": """
+        You are an AI tutor guiding a student.
+        Your goal is to:
+        1. Answer the user's question clearly and concisely.
+        2. Follow up with an engaging, open-ended question to encourage deeper thinking.
+        3. Remember previous responses and relate your responses with that.
+        4. Maintain a formal and professional tone, and do not use emojis.
+        """
+    }
+
+    # Append user message to chat history (only user messages)
     chat_history.append({"role": "user", "content": request.message})
 
     try:
@@ -69,11 +78,12 @@ async def chat_endpoint(request: ChatRequest):
             "Content-Type": "application/json"
         }
 
+        # ✅ Send system prompt but DO NOT store it in chat history
         payload = {
             "model": "mistralai/mistral-7b-instruct",
-            "messages": chat_history,  # Send entire chat history
+            "messages": [system_prompt] + chat_history,  # System prompt only sent in request
             "max_tokens": 500,
-            "temperature": 0.7,
+            "temperature": 0.3,  # Lowered for a more structured response
         }
 
         response = requests.post(f"{BASE_URL}/chat/completions", json=payload, headers=headers)
@@ -82,9 +92,11 @@ async def chat_endpoint(request: ChatRequest):
             raise HTTPException(status_code=401, detail="Invalid API Key")
 
         response_json = response.json()
+
+        # ✅ Ensure proper response parsing
         bot_response = response_json["choices"][0]["message"]["content"]
 
-        # Append AI response to chat history
+        # Append AI response to chat history (only assistant messages)
         chat_history.append({"role": "assistant", "content": bot_response})
 
         return {"reply": bot_response}
@@ -111,21 +123,27 @@ async def upload_file(file: UploadFile = File(...), question: str = Form(...)):
         # Ensure the text isn't too long for OpenRouter
         truncated_text = extracted_text[:4000]  
 
-        system_prompt = f"""
-        You are an AI assistant analyzing a document.
-        The user uploaded a file and has a question related to it.
-        Your goal is to:
-        1. Read and understand the document.
-        2. Answer the user's question based on the document.
-        3. Provide additional insights if relevant.
+        # ✅ Define system prompt for file analysis separately
+        system_prompt = {
+            "role": "system",
+            "content": f"""
+            You are an AI assistant analyzing a document.
+            The user uploaded a file and has a question related to it.
+            Your goal is to:
+            1. Read and understand the document.
+            2. Answer the user's question based on the document.
+            3. Provide additional insights if relevant.
 
-        Document Content:
-        {truncated_text}
-        """
+            Document Content:
+            {truncated_text}
+            """
+        }
 
-        # Append file-related prompt to chat history
-        chat_history.append({"role": "system", "content": system_prompt})
+        # Append file question to chat history
         chat_history.append({"role": "user", "content": question})
+
+        # ✅ Call getRes() for uploaded file question
+        getRes(question)
 
         headers = {
             "Authorization": f"Bearer {API_KEY}",
@@ -134,9 +152,9 @@ async def upload_file(file: UploadFile = File(...), question: str = Form(...)):
 
         payload = {
             "model": "mistralai/mistral-7b-instruct",
-            "messages": chat_history,  # Use full chat history
+            "messages": [system_prompt] + chat_history,  # System prompt only in request
             "max_tokens": 500,
-            "temperature": 0.7,
+            "temperature": 0.3,
         }
 
         response = requests.post(f"{BASE_URL}/chat/completions", json=payload, headers=headers)

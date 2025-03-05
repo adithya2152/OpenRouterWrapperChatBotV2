@@ -3,7 +3,7 @@ uvicorn
 python-dotenv
 requests
 openai
-dotenv
 pypdf
-docx
-shutil
+python-docx
+supabase
+cd 

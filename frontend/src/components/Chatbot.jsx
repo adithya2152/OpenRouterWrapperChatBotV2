@@ -32,14 +32,14 @@ const Chatbot = () => {
                 formData.append("file", file);
                 formData.append("question", input || "Summarize this document");
 
-                response = await axios.post("https://my-fast-api-ba5i.onrender.com/upload/", formData, {
+                response = await axios.post("http://localhost:8000/upload/", formData, {
                     headers: { "Content-Type": "multipart/form-data" },
                 });
 
                 setFile(null); // Reset file input
             } else {
                 // Send text message
-                response = await axios.post("https://my-fast-api-ba5i.onrender.com//chat", { message: input });
+                response = await axios.post("http://localhost:8000/chat", { message: input });
             }
 
             const botMessage = { role: "bot", content: response.data.reply };
